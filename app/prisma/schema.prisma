@@ -1,0 +1,260 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/gmail_management_ui/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// NextAuth.js default tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("user")
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  apiKeys       ApiKey[]
+  auditLogs     AuditLog[]
+  notifications UserNotification[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Gmail Mailbox Management System specific tables
+
+// Encrypted API Key Storage
+model ApiKey {
+  id          String   @id @default(cuid())
+  userId      String
+  service     String   // "openai", "twilio", "push_notification", etc.
+  keyName     String   // Display name for the key
+  encryptedKey String  @db.Text // Encrypted API key
+  isActive    Boolean  @default(true)
+  lastUsed    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, service, keyName])
+}
+
+// Gmail Account Management
+model GmailAccount {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  displayName       String?
+  isConnected       Boolean  @default(false)
+  authToken         String?  @db.Text
+  refreshToken      String?  @db.Text
+  tokenExpiry       DateTime?
+  lastSyncAt        DateTime?
+  syncStatus        String   @default("pending") // "active", "error", "pending"
+  errorMessage      String?  @db.Text
+  totalEmails       Int      @default(0)
+  processedEmails   Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  emailLogs         EmailProcessingLog[]
+  notifications     EmailNotification[]
+}
+
+// Workflow Control and Status
+model WorkflowStatus {
+  id              String   @id @default(cuid())
+  workflowId      String   @unique @default("1747c5e50")
+  status          String   @default("stopped") // "running", "stopped", "paused", "error"
+  lastStarted     DateTime?
+  lastStopped     DateTime?
+  executionCount  Int      @default(0)
+  errorCount      Int      @default(0)
+  lastError       String?  @db.Text
+  configuration   Json?    // Workflow configuration settings
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Email Processing Logs and Analytics
+model EmailProcessingLog {
+  id              String       @id @default(cuid())
+  gmailAccountId  String
+  messageId       String       @unique
+  subject         String?
+  sender          String?
+  recipient       String?
+  classification  String?      // "important", "spam", "promotional", etc.
+  confidence      Float?       // Classification confidence score
+  action          String?      // "archived", "replied", "flagged", etc.
+  smartReply      String?      @db.Text
+  replyGenerated  Boolean      @default(false)
+  processed       Boolean      @default(false)
+  processingTime  Int?         // Time in milliseconds
+  errorMessage    String?      @db.Text
+  createdAt       DateTime     @default(now())
+  gmailAccount    GmailAccount @relation(fields: [gmailAccountId], references: [id], onDelete: Cascade)
+}
+
+// System Configuration
+model SystemConfig {
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  value                 String   @db.Text
+  description           String?
+  dataType              String   @default("string") // "string", "number", "boolean", "json"
+  category              String?  // "notification", "processing", "classification"
+  isSystemConfig        Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// Notification Management
+model NotificationTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String   // "email", "sms", "push"
+  subject     String?
+  body        String   @db.Text
+  variables   Json?    // Template variables
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailNotification {
+  id              String       @id @default(cuid())
+  gmailAccountId  String
+  type            String       // "new_important", "classification_complete", "error"
+  title           String
+  message         String       @db.Text
+  status          String       @default("pending") // "sent", "failed", "pending"
+  deliveryMethod  String       // "email", "sms", "push"
+  sentAt          DateTime?
+  errorMessage    String?      @db.Text
+  createdAt       DateTime     @default(now())
+  gmailAccount    GmailAccount @relation(fields: [gmailAccountId], references: [id], onDelete: Cascade)
+}
+
+model UserNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String   @default("info") // "info", "warning", "error", "success"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Analytics and Reporting
+model SystemMetrics {
+  id                      String   @id @default(cuid())
+  date                    DateTime @unique @default(now())
+  emailsProcessed         Int      @default(0)
+  emailsClassified        Int      @default(0)
+  smartRepliesGenerated   Int      @default(0)
+  notificationsSent       Int      @default(0)
+  averageProcessingTime   Float?
+  classificationAccuracy  Float?
+  systemUptime           Float?   // Percentage
+  errorRate              Float?   // Percentage
+  createdAt              DateTime @default(now())
+}
+
+model ClassificationStats {
+  id           String   @id @default(cuid())
+  date         DateTime @default(now())
+  category     String
+  count        Int      @default(0)
+  accuracy     Float?
+  createdAt    DateTime @default(now())
+  
+  @@unique([date, category])
+}
+
+// Audit Logs and Security
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String   // "login", "api_key_created", "workflow_started", etc.
+  resource    String?  // Resource affected
+  resourceId  String?  // ID of affected resource
+  details     Json?    // Additional details
+  ipAddress   String?
+  userAgent   String?  @db.Text
+  success     Boolean  @default(true)
+  errorMessage String? @db.Text
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Error Logs and Maintenance
+model ErrorLog {
+  id            String   @id @default(cuid())
+  component     String   // "workflow", "gmail_api", "classification", etc.
+  errorType     String
+  errorMessage  String   @db.Text
+  stackTrace    String?  @db.Text
+  severity      String   @default("medium") // "low", "medium", "high", "critical"
+  resolved      Boolean  @default(false)
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  metadata      Json?    // Additional error context
+  createdAt     DateTime @default(now())
+}
+
+model MaintenanceTask {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?  @db.Text
+  taskType       String   // "cleanup", "sync", "backup", etc.
+  status         String   @default("pending") // "pending", "running", "completed", "failed"
+  scheduledAt    DateTime
+  startedAt      DateTime?
+  completedAt    DateTime?
+  duration       Int?     // Duration in seconds
+  result         String?  @db.Text
+  errorMessage   String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
