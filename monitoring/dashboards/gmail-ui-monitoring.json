@@ -1,0 +1,61 @@
+
+{
+  "dashboard": {
+    "id": null,
+    "title": "Gmail Management UI - Production Monitoring",
+    "tags": ["gmail", "nextjs", "authentication"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Live Application Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"nextjs-app\"}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Authentication Events",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"nextjs-app\"} |~ \"(?i)(auth|login|signin|session)\"",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 3,
+        "title": "Error Logs",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"nextjs-app\"} |~ \"(?i)(error|err|fail|exception)\"",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Production Tunnel Status",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"localtunnel\"}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 14}
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "5s"
+  }
+}

@@ -1,0 +1,51 @@
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: nextjs-app
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nextjs-app
+          __path__: /tmp/nextjs-*.log
+
+  - job_name: localtunnel
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: localtunnel
+          __path__: /tmp/localtunnel.log
+
+  - job_name: auth-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: auth-logs
+          __path__: /tmp/auth-*.log
+
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog
+
+  - job_name: production-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: production
+          __path__: /tmp/production.log

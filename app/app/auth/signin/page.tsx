@@ -73,6 +73,7 @@ export default function SignInPage() {
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     placeholder="Enter your email"
                     value={email}
@@ -88,6 +89,7 @@ export default function SignInPage() {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input
                     id="password"
+                    name="password"
                     type="password"
                     placeholder="Enter your password"
                     value={password}
